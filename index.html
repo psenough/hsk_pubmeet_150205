@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+ <head>
+ 	<title>Helsinki Pubmeet 5 Feb 2015</title>
+	<meta charset="UTF-8">
+  	<link rel="stylesheet" type="text/css" href="css/index.css" />
+	<script src="requestanimationframe.js"></script>
+	<script type="application/javascript">
+
+rand = function(n){
+	return Math.floor(Math.random()*n);
+};
+
+var rms = 0;
+
+var is_chrome = navigator.userAgent.indexOf('Chrome') > -1;
+//var is_explorer = navigator.userAgent.indexOf('MSIE') > -1;
+//var is_firefox = navigator.userAgent.indexOf('Firefox') > -1;
+var is_safari = navigator.userAgent.indexOf("Safari") > -1;
+//var is_opera = navigator.userAgent.indexOf("Presto") > -1;
+if ((is_chrome)&&(is_safari)) {is_safari=false;}
+/*
+var loading = [
+	'fthr/robin1.png',
+	'fthr/robin_riding2_1.png',
+	'fthr/robin_riding2_2.png',
+	'optic/final_robin.png',
+	'internet/wood.jpg', // original Wallpapers-room_com___Wooden_Noir_Wallpaper_Pack_by_shod4n_1920x1200.png
+	'internet/hsk2.png', // original photo by Marcus Klepper 
+	'internet/Kapow_by_Teakster.jpg' // http://teakster.deviantart.com/art/Kapow-172173540
+	];
+var loading_counter = 0;
+var robin = [];
+*/
+function init() {
+	/*var d = new Date();
+	var timestamp = d.getTime();
+	for (var i = 0; i < loading.length; i++) {
+		var image = new Image();
+		
+		image.onload = function() {
+			//context.drawImage(imageObj, 69, 50);
+			console.log('done loading ' + this.src);
+			//console.log(this);
+			checkLoadingDone();
+		};
+		image.src = loading[i]+'?'+timestamp; // timestamp to prevent cache breaking our onload callback
+		
+		robin.push(image);
+	}*/
+	
+	initSound();
+}
+/*
+function checkLoadingDone() {
+	loading_counter++;
+	if (loading_counter >= loading.length) {
+		initSound();
+	}
+}*/
+
+var audioContext;
+
+function initSound() {
+	
+	try {
+		// Fix up for prefixing
+		window.AudioContext = window.AudioContext||window.webkitAudioContext;
+		audioContext = new AudioContext();
+
+		var request = new XMLHttpRequest();		
+		if (is_safari) request.open('GET', '20130920-EviL.m4a', true);
+			else request.open('GET', '20130920-EviL.ogg', true);
+		request.responseType = 'arraybuffer';
+		console.log('requesting');
+
+		// Decode asynchronously
+		request.onload = function() {
+			decode(request.response);
+		}
+		request.send();
+
+	} catch(e) {
+		console.log('Web Audio API is not supported in this browser');
+		drawCanvas();
+	}
+
+}
+
+var levelChecker;
+
+var decode = function(response) {
+	audioContext.decodeAudioData(response, function(buffer) {
+
+		backgroundAudio = audioContext.createBufferSource(); 	// creates a sound source
+		backgroundAudio.buffer = buffer;                    // tell the source which sound to play
+		backgroundAudio.connect(audioContext.destination);       // connect the source to the context's destination (the speakers)
+		backgroundAudio.loop = true;
+		backgroundAudio.start(0);
+
+		levelChecker = audioContext.createScriptProcessor(2048, 1, 2);
+		backgroundAudio.connect(levelChecker);
+		levelChecker.connect(audioContext.destination);
+		levelChecker.onaudioprocess = process;
+		console.log('audio playing');
+	
+		// start canvas
+		drawCanvas();
+
+	}, function(evt) {
+		console.log('failed to load buffer');
+		console.log(evt);
+	});
+}
+
+var process = function(e) {
+	var buffer = e.inputBuffer.getChannelData(0);
+	var len = buffer.length; 
+	var total = 0;
+	var i = 0;
+	while ( i < len ) total += Math.abs( buffer[i++] );
+	rms = (rms + Math.sqrt( total / len )) * 0.5;
+	//console.log(rms);
+}
+
+var w;
+var h;
+var centerX;
+var centerY;
+var ctx;
+var oangle;
+
+//var fps = 0;
+//var framecounter = true;
+//var fpsFilter = 60;
+
+var clip = false;
+var attractor = false;
+var changecolor = false;
+var seedindex = 0;
+
+var firestarter = 0;
+var starttime = 0;
+var tap = 0;
+
+var cnum = 16;
+var mul = 2;
+
+var elevatorchange = false;
+
+function drawCanvas() {
+
+	resize();
+
+	var num = 45;
+	var angle = (Math.PI*2)/num;
+	var size = 60;
+	var opening, phase1, phase2;
+	var maxj = 10;
+	
+	
+	function drawSpyralFlare() {
+		ctx.clearRect(0,0,w,h);
+		//ctx.drawImage(robin[4],0,0,w,h);
+		var d = new Date();
+		var timer = d.getTime();
+		
+		/*if (framecounter) {
+			var thisFrameFPS = 1000 / (timer - lastUpdate);
+			if (timer!=lastUpdate){
+				fps += (thisFrameFPS - fps) / fpsFilter;
+				lastUpdate = timer;
+			}
+		}*/
+		
+		phase1 = (firestarter-timer)/25000;
+		phase2 = (firestarter-timer)/2500;
+		
+		var affect1 = 2;
+		
+		if (timer-starttime > 28200) {
+			var quart = timer%440;
+			if (quart > 220) {
+				affect1 = 2;
+			} else {
+				affect1 = 3;
+			}
+		}
+		
+		var gray = parseInt((rms*10),10);
+		//255,105,180
+		color = "rgba(255,"+(100+gray)+","+(175+gray)+","+(0.2+rms)+")";
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.rect(0,0,w,h);
+		ctx.fill();
+		ctx.closePath();
+		
+		var posX = w*(0.5);
+		var posY = h*(0.5);
+		//var rms = 0.4;
+		
+		ctx.strokeStyle = "rgba(0,0,0,1.0)";
+		ctx.lineWidth = 1;
+		
+		for (var j=0; j<9; j++) {
+		
+			var thisb = parseInt((Math.sin(phase2*0.5 + j)+1.0)*5, 10);
+			//console.log(thisb);
+			//color = "rgba(255,175,"+thisb+",0.016)";
+			//color = "rgba("+(255-thisb)+","+(255-thisb)+",0,"+0.012+")";
+			
+			//ctx.fillStyle = color;
+			//ctx.lineWidth = j%4;
+			
+			for (var i=0; i<num; i++) {			
+					opening = Math.sin(i*angle)*30 + j*20*affect1;
+				
+					size = 40+Math.sin(timer/1000)*10;
+					ctx.save();
+					ctx.translate( posX+Math.sin(i*angle+phase1)*opening, posY+Math.cos(i*angle+phase1)*opening );
+					ctx.rotate(i*angle+Math.sin(phase2+Math.sin(i*angle))*4);
+					ctx.beginPath();
+					ctx.moveTo(-size*.5*j,-size*.5*j);
+					ctx.lineTo(0,size);
+					ctx.lineTo(size*.5*j,-size*.5*j);
+					ctx.lineTo(size*.5,size/2*Math.sqrt(3));
+					
+					ctx.closePath();
+					ctx.stroke();
+					ctx.restore();
+			}
+		}
+		
+	}
+	
+
+	//
+	// start demo
+	//
+	
+	requestAnimationFrame( animate );
+	document.getElementById('message').innerHTML = '';
+
+	var d = new Date();
+	var lastUpdate = d.getTime();
+	firestarter = lastUpdate;
+	starttime = lastUpdate;
+
+	function animate() {
+		requestAnimationFrame( animate );
+
+		var d = new Date();
+		var thistime = d.getTime();
+		var currtime = (thistime-starttime);
+		/*	
+		var timerOut = document.getElementById('timer');
+		if (timerOut) timerOut.innerHTML = currtime + '<br>' + tap;
+	  	*/
+	  	
+	  	if (sequenceindex < sequence.length-1) {
+			
+			if (currtime > sequence[sequenceindex+1]["start"]) {
+				sequence[sequenceindex+1]["call"]();
+				sequenceindex++;
+				console.log('jumped to: ' + sequenceindex);
+			}
+		}
+		
+		drawSpyralFlare();
+	}
+}
+
+window.onresize = resize;
+
+function resize() {
+	w = window.innerWidth;
+	h = window.innerHeight;
+	
+	var canvas = document.getElementById("canvas");
+	canvas.setAttribute("width", w);
+	canvas.setAttribute("height", h);
+	
+	ctx = canvas.getContext("2d");
+	ctx.width = w;
+	ctx.height = h;
+	
+	centerX = w*(0.5);
+	centerY = h*(0.5);
+	oangle = Math.asin( centerX / Math.sqrt(centerX*centerX+centerY*centerY) ) * 2;
+}
+
+/*if (framecounter) {
+	setInterval(function(){
+		var fpsOut = document.getElementById('fps');
+		if (fpsOut) fpsOut.innerHTML = fps.toFixed(1);
+	}, 1000);
+}*/
+
+function loadLine(thisclass, thistext) {
+	var content = '';
+ 	content += '<span class="'+thisclass+'">'+thistext+'</span><br />';
+ 	document.getElementById('message').innerHTML = content;
+}
+
+function loadBlank() {
+	loadLine('','');
+}
+
+function refire() {
+	var d = new Date();
+	firestarter = d.getTime();
+}
+
+function retap() {
+	var d = new Date();
+	tap = d.getTime() - starttime;
+	console.log('new tap: ' + tap);
+}
+
+
+var temp = 3200;
+var tempi = 0;
+var sequence = [
+
+	{ "start": 0, "call": function(){ hello = 'world'; } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','zomg<br>someone set us up<br>the pubmeet'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','it shall be dark and long<br>in helsinki'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','and full of (uk scene) stars'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','kurvi\'s williamk'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','16:30<br>5 february 2015'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','be there'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','and right after<br>we have demoilta at klubi'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','double the action<br>triple the excitement'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','holy pubmeet'); } },	
+	//{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','be there or scenefail'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','clap for greets \\o/'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','greetings to accession only'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','fuckings to lamers'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','love from ps / tpolm'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','track by evil / accession'); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadBlank(); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','attend the fuck'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadBlank(); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','attention synteesi of mfx'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','your shelf will be<br>left at klubi'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','please pick it up<br>before nosfe eats it'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadBlank(); } },	
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','its bad for his stomach<br>doesnt go well with vodka'); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadBlank(); } },
+	{ "start": (tempi++)*temp, "call": function(){ loadLine('normal','williamk in sörnäinen<br>16:30<br>5 february 2015'); } },	
+];
+var sequenceindex = -1;
+
+document.onkeyup = function(event) {
+    console.log(event.keyCode);
+    switch(event.keyCode) {
+    	case 32: //spacebar
+    		retap();
+    	break;
+    }
+};
+
+  </script>
+ </head>
+ <body onload="init()">
+ 	<div class="aligncenter">
+   		<canvas id="canvas" width="800" height="600"></canvas>
+   		<div id="message">unloading the neural net</div>
+   	</div>
+   	<!--<div id="fps"></div>
+   	<div id="timer"></div>-->
+ </body>
+</html>
